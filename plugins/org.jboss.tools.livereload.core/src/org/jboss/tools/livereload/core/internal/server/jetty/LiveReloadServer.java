@@ -12,6 +12,8 @@
 package org.jboss.tools.livereload.core.internal.server.jetty;
 
 import java.util.EventObject;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.HandlerCollection;
@@ -19,6 +21,8 @@ import org.eclipse.jetty.server.nio.SelectChannelConnector;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.jboss.tools.livereload.core.internal.angularjs.ContentAssistServlet;
+import org.jboss.tools.livereload.core.internal.angularjs.ContentAssistWebSocket;
 import org.jboss.tools.livereload.core.internal.service.EventService;
 import org.jboss.tools.livereload.core.internal.service.LiveReloadClientConnectedEvent;
 import org.jboss.tools.livereload.core.internal.service.LiveReloadClientConnectionFilter;
@@ -93,6 +97,9 @@ public class LiveReloadServer extends Server implements Subscriber {
 		liveReloadServletHolder
 				.setInitParameter(MIN_WEB_SOCKET_PROTOCOL_VERSION, MIN_WEB_SOCKET_PROTOCOL_VERSION_VALUE);
 		context.addServlet(liveReloadServletHolder, "/livereload");
+
+initContentAssistConnection(context);
+
 		context.addServlet(new ServletHolder(new LiveReloadScriptFileServlet()), "/livereload.js");
 		if (enableProxyServer) {
 			context.addServlet(new ServletHolder(new WorkspaceFileServlet()), "/*");
@@ -102,6 +109,54 @@ public class LiveReloadServer extends Server implements Subscriber {
 		}
 		EventService.getInstance().subscribe(this, new LiveReloadClientConnectionFilter());
 	}
+
+public Set<ContentAssistWebSocket> webSockets;
+private void initContentAssistConnection(ServletContextHandler context) {
+	ServletHolder servletHolder = new ServletHolder(new ContentAssistServlet());
+	context.addServlet(servletHolder, "/cli");
+	webSockets = new CopyOnWriteArraySet<>();
+	context.getServletContext().setAttribute("org.jboss.tools.jst.ContentAssistWebSockets", webSockets);
+
+//	Thread one = new Thread() {
+//	    public void run() {
+//	        try {
+//	            Thread.sleep(30000);
+//	        	try (Scanner in = new Scanner(System.in)) {
+//	                StringBuffer commandBuffer = new StringBuffer();
+//	                while (in.hasNextLine()) {
+//	                	String nextLine = in.nextLine();
+//	                	if(nextLine.startsWith("CA!")) {
+//	                		nextLine = nextLine.substring(3);
+//	        	        	commandBuffer.append(nextLine);
+//	        	        	if (!nextLine.endsWith("\\")) {
+//	        	        		Iterator<ContentAssistWebSocket> webSocketsIterator = webSockets.iterator();
+//	        	        		if (webSocketsIterator.hasNext()) {
+//	        	        			ContentAssistWebSocket webSocket = webSocketsIterator.next(); // use only the first one
+//	        	        			try {
+//	        	        				long start = System.nanoTime();
+//	        	        				String result = webSocket.evaluate(commandBuffer.toString(), 100);
+//	        	        				long stop = System.nanoTime();
+//	        	        				System.out.format("%s [computed in %.3fms]%n", result, (stop - start) / 1e6);
+//	        	        			} catch (Exception e) {
+//	        	        				e.printStackTrace();
+//	        	        			}
+//	        	        		} else {
+//	        	        			System.out.println("No clients connected.");
+//	        	        		}
+//	        	        		commandBuffer = new StringBuffer(); // clear buffer
+//	        	        	} else {
+//	        	        		commandBuffer.setCharAt(commandBuffer.length() - 1, '\n');
+//	        	        	}
+//	                	}
+//	                }
+//	            }
+//	        } catch(InterruptedException v) {
+//	            System.out.println(v);
+//	        }
+//	    }  
+//	};
+//	one.start();
+}
 
 	/**
 	 * Returns the number of connections on the websocket connector.

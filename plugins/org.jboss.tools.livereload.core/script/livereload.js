@@ -1,3 +1,75 @@
+// Begin CA
+
+(function() {
+	var cawebsocket = new WebSocket("ws://localhost:35729/cli");
+	cawebsocket.onmessage = function(evt) {
+		var request = evt.data;
+
+		var separatorIndex = request.indexOf(';');
+		var id = request.substr(0, separatorIndex);
+		var command = request.substr(separatorIndex + 1);
+		var result;
+		try {
+			result = window.eval(command);
+		} catch (e) {
+			result = "Error: " + e.message; 
+		}
+
+		cawebsocket.send(id + ';' + result);
+	};
+}());
+
+var ORG_JBOSS_TOOLS_JST = {};
+
+ORG_JBOSS_TOOLS_JST.getProposals = function(selector, value) {
+	var element = document.querySelector(selector); 
+	var scope = angular.element(element).scope();
+	var result = '';
+	var values = value.split(".");
+	var parentObject = scope;
+	for (var i = 0; i < values.length-1; i++) {
+	    parentObject = ORG_JBOSS_TOOLS_JST.getMemberObject(parentObject, values[i]);
+	}
+	if(parentObject) {
+		result = ORG_JBOSS_TOOLS_JST.getProposalsForLastSegment(parentObject, values[values.length-1]);
+	}
+
+	return result;
+};
+
+ORG_JBOSS_TOOLS_JST.getProposalsForLastSegment = function(member, nameMask) {
+	var result = '';
+	for (var p in member) {
+		if ((p.indexOf('$') !== 0) && (p.lastIndexOf(nameMask, 0) === 0)) { // not Angular internal variable which starts with nameMask
+			result += p;
+			if (typeof member[p] === "function") {
+				var funStr = member[p].toString();
+				var funArgsStr = funStr.slice(funStr.indexOf('(') + 1, funStr.indexOf(')'))
+				result += '(' + funArgsStr + ')';
+			}
+			result += ', ';
+		}
+	}
+
+	return result;
+};
+
+ORG_JBOSS_TOOLS_JST.getMemberObject = function(parentObject, memberName) {
+	var brIndex = memberName.indexOf('(');
+	var name = memberName;
+	if(brIndex>0) {
+		name = memberName.slice(0, brIndex);
+	}
+	for(var propertyName in parentObject) {
+		if(propertyName == name) {
+			return parentObject[propertyName];
+		}
+	}
+};
+// end CA
+
+
+
 (function() {
 var __customevents = {}, __protocol = {}, __connector = {}, __timer = {}, __options = {}, __reloader = {}, __livereload = {}, __less = {}, __startup = {};
 
